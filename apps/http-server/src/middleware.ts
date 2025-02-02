@@ -11,13 +11,19 @@ async function middleware(req: Request, res: Response, next: NextFunction) {
         }
 
         const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
-        if(!decoded || !decoded.userId) {
+        console.log(decoded);
+        if(!decoded || !decoded.userdb.id) {
           res.status(401).json({
             success: "Invalid token"
-          })
+          });
+          return;
         }
+
+        // @ts-ignore
+        req.id = decoded.userdb.id;        
     } catch (error) {
-        return res.status(500).json({ message: "server error" });
+        res.status(500).json({ message: "server error" });
+        return;
     }
     next();
 }

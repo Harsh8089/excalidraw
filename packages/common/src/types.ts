@@ -20,3 +20,7 @@ export const signUpSchema = z.object({
 .refine((data) => data.password === data.confirm, {
   message: "Password doesn't match",
 });
+
+export const createRoomSchema = z.object({
+  slug: z.string().min(3).max(20),  
+})

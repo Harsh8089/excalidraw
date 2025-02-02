@@ -2,7 +2,7 @@ import express, { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 
 import middleware from "./middleware";
-import { userSchema, signInSchema, signUpSchema } from "@repo/common/types";
+import { userSchema, signInSchema, signUpSchema, createRoomSchema } from "@repo/common/types";
 import { prisma } from "@repo/db/client";
 import { JWT_SECRET } from "@repo/backend-common/config";
  
@@ -109,10 +109,53 @@ app.post("/sign-in", async (req: Request, res: Response) => {
 })
 
 // @ts-ignore
-app.post("create-room", middleware, async (req: Request, res: Response) => {
-    
+app.post("/create-room", middleware, async (req: Request, res: Response) => {
+  try {
+    const parsedData = createRoomSchema.safeParse(req.body);
+    if(parsedData.success) {
+      // @ts-ignore
+      console.log("Admin id: " +req.id);
+      const roomdb = await prisma.room.findFirst({
+        where: {
+          slug: parsedData.data.slug
+        }
+      });
+      
+      if(roomdb) {
+        res.status(409).json({
+          message: "Room already exists"
+        });
+        return;
+      }
+
+      const roomCreated = await prisma.room.create({
+        data: {
+          // @ts-ignore
+          adminId: parseInt(req.id),
+          slug: parsedData.data.slug,
+        }
+      });
+
+      res.status(200).json({
+        message: "Room created successfully",
+        roomCreated
+      });
+      return;
+    } else  {
+      res.status(400).json({
+        message: "Invalid data format"
+      });
+      return;
+    }    
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({
+      message: "Internal server error"
+    });
+    return;
+  }
 })
 
-app.listen(5555, () => {
+app.listen(3001, () => {
   console.log("http server activated on port 3001")
 });
