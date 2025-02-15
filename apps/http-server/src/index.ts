@@ -1,5 +1,6 @@
 import express, { Request, Response } from "express";
 import jwt from "jsonwebtoken";
+import cors from "cors";
 
 import middleware from "./middleware";
 import { userSchema, signInSchema, signUpSchema, createRoomSchema } from "@repo/common/types";
@@ -7,6 +8,9 @@ import { prisma } from "@repo/db/client";
 import { JWT_SECRET } from "@repo/backend-common/config";
  
 const app = express();
+app.use(cors({
+  origin: '*'
+}));
 app.use(express.json());
 
 app.get("/health-check", (req: Request, res: Response) => {
@@ -62,7 +66,7 @@ app.post("/sign-up", async (req: Request, res: Response) => {
     });
     return;
   }
-})
+});
 
 app.post("/sign-in", async (req: Request, res: Response) => {
   try {
@@ -91,7 +95,8 @@ app.post("/sign-in", async (req: Request, res: Response) => {
       }, JWT_SECRET);
 
       res.status(200).json({
-        token
+        token,
+        userId: userdb.id
       });
       return;
     } else {
@@ -106,15 +111,14 @@ app.post("/sign-in", async (req: Request, res: Response) => {
     });
     return;
   }
-})
+});
 
 // @ts-ignore
-app.post("/create-room", middleware, async (req: Request, res: Response) => {
+app.post("/room", middleware, async (req: Request, res: Response) => {
   try {
     const parsedData = createRoomSchema.safeParse(req.body);
     if(parsedData.success) {
-      // @ts-ignore
-      console.log("Admin id: " +req.id);
+      
       const roomdb = await prisma.room.findFirst({
         where: {
           slug: parsedData.data.slug
@@ -154,7 +158,41 @@ app.post("/create-room", middleware, async (req: Request, res: Response) => {
     });
     return;
   }
-})
+});
+
+app.get("/chats/:roomId", middleware, async (req: Request, res: Response) => {
+  const roomId = req.params.roomId ?? "";
+  console.log(roomId);
+  try {
+    const chatMessages = await prisma.chat.findMany({
+      where: {
+        roomId: parseInt(roomId)
+      },
+      orderBy: {
+        id: "desc"
+      },
+      take: 50,
+      select: {
+        id: true,
+        userId: true,
+        message: true,
+      }
+    });
+
+    console.log(chatMessages);
+
+    res.status(200).json({
+      chatMessages
+    });
+    return;
+  } catch (error) {
+    res.status(500).json({
+      message: "Internal server error",
+      error
+    });
+    return;
+  }
+});
 
 app.listen(3001, () => {
   console.log("http server activated on port 3001")

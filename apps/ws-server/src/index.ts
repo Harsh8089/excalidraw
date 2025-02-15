@@ -1,30 +1,39 @@
 import { WebSocketServer, WebSocket } from "ws";
 import jwt, { JwtPayload } from "jsonwebtoken"; 
-import { JWT_SECRET } from "@repo/backend-common/config"
+import { JWT_SECRET } from "@repo/backend-common/config";
+import { prisma } from "@repo/db/client";
 
 const wss = new WebSocketServer({ port: 3002 });
 
 type User = {
-  rooms: string[],
-  ws: WebSocket 
+  rooms: number[],
+  ws: WebSocket,
+  userId: string
 }
 
+// create room logic is handled by http-backend
 type Data = {
-  type: 'join-room' | 'create-room' | 'leave-room' | 'chat',
-  roomId: string,
+  type: 'join-room' | 'leave-room' | 'chat',
+  roomId: number,
   chatMessage?: string
 }
 
 const users: User[] = []
 
 const checkValid = (token: string) : null | string => {
-  const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
+  if (!token.trim()) return null;
   
-  if(!decoded || !decoded.userdb.id) {
-    return null;
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
+  
+    if(!decoded || !decoded.userdb.id) {
+      return null;
+    }
+    return decoded.userdb.id;
+  } catch (error) {
+    console.log(error);
   }
-
-  return decoded.userdb.id;
+  return null;
 }
 
 wss.on('connection', async (ws, request) => {
@@ -41,17 +50,24 @@ wss.on('connection', async (ws, request) => {
 
   users.push({
     ws,
-    rooms: []
+    rooms: [],
+    userId: user
   });
 
-
-  ws.on('message', (message: string) => {
+  ws.on('message', async (message: string) => {
     try {
       const data: Data = JSON.parse(message);
 
       if(data.type === 'join-room') {
+        const roomdb = await prisma.room.findFirst({
+          where: {
+            id: Number(data.roomId)
+          }
+        });
+        if(!roomdb) return;
+
         const user = users.find(user => user.ws === ws);
-        user?.rooms.push(data.roomId);
+        if(!user?.rooms.includes(Number(data.roomId))) user?.rooms.push(data.roomId);
       }
       if(data.type === 'leave-room') {
         const user = users.find(user => user.ws === ws);
@@ -59,18 +75,33 @@ wss.on('connection', async (ws, request) => {
         user.rooms = user?.rooms.filter(room => room === data.roomId)
       }
       if(data.type === 'chat') {
+        try {
+          await prisma.chat.create({
+            data: {
+              roomId: Number(data.roomId),
+              userId: Number(user),
+              message: data.chatMessage ?? ""
+            }
+          });
+        } catch (error) {
+          console.log(error);
+          return;
+        }
+
         users.forEach(user => {
-          if(user.rooms.includes(data.roomId)) {
+          if(user.rooms.includes(data.roomId) && user.ws !== ws) {
             user.ws.send(JSON.stringify({
               type: 'chat',
               message: data.chatMessage,
-              roomId: data.roomId
+              roomId: data.roomId,
+              userId: user.userId
             }));
           }
         });
       }
 
     } catch (error) {
+      console.log(error);
       return null;
     }
   });
