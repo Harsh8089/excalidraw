@@ -1,8 +1,8 @@
 "use client";
 
-import initGame from "../../../draw/initGame";
+import initGame from "../../draw/initGame";
 import { useEffect, useRef } from "react";
-import useSocket from "../../../hooks/useSocket";
+import useSocket from "../../hooks/useSocket";
 import { SOCKET_URL } from "@repo/common/config";
 
 const Canvas = () => {

@@ -49,14 +49,16 @@ export default async function initGame(
 
   socket.onmessage = (event) => {
     const data = JSON.parse(event.data);
-    const shape: Shape = JSON.parse(data.message);
+    if(data.type === 'chat') {
+      const shape: Shape = JSON.parse(data.message);
     
-    if(shape.type === 'rect') {
-      ctx.strokeStyle = 'rgba(255, 255, 255)';
-      ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
-    }
+      if(shape.type === 'rect') {
+        ctx.strokeStyle = 'rgba(255, 255, 255)';
+        ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
+      }
 
-    existingShapes.push(shape);
+      existingShapes.push(shape);
+    }
   }
 
   ctx.fillStyle = 'rgba(0, 0, 0)';
