@@ -59,12 +59,17 @@ wss.on('connection', async (ws, request) => {
       const data: Data = JSON.parse(message);
 
       if(data.type === 'join-room') {
-        const roomdb = await prisma.room.findFirst({
-          where: {
-            id: Number(data.roomId)
-          }
-        });
-        if(!roomdb) return;
+        try {
+          const roomdb = await prisma.room.findFirst({
+            where: {
+              id: Number(data.roomId)
+            }
+          });
+          if(!roomdb) return;
+        } catch (error) {
+          console.log(error);
+          return;
+        }
 
         const user = users.find(user => user.ws === ws);
         if(!user?.rooms.includes(Number(data.roomId))) user?.rooms.push(data.roomId);

@@ -17,7 +17,7 @@ export default function Canvas({
     if (canvas) {
       initGame(canvas, roomId, socket);
     }
-  }, [canvasRef]);
+  }, []);
 
   return <canvas
     width={1000}
