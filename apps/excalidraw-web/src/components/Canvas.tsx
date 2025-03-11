@@ -1,7 +1,13 @@
 "use client";
 
-import initGame from "@/draw/initGame";
-import { useEffect, useRef } from "react";
+import { 
+handleGame,
+getExistingShapes,
+Shape
+} from "@/draw/game";
+import { useEffect, useRef, useState } from "react";
+import Tools from "./Tools";
+import { toolsType } from "./Tools";
 
 export default function Canvas({
   roomId,
@@ -11,18 +17,36 @@ export default function Canvas({
   socket: WebSocket
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [toolSelected, setToolSelected] = useState<toolsType>("rect");
+  const [existingShapes, setExistingShapes] = useState<Shape[]>([]);
+  
+  useEffect(() => {
+    getExistingShapes(roomId).then((data) => {
+      if(data) setExistingShapes(data);
+    });
+  }, [])
   
   useEffect(() => {
     const canvas = canvasRef.current;
     if (canvas) {
-      initGame(canvas, roomId, socket);
+      const { width, height } = canvas.getBoundingClientRect();
+      canvas.width = width;
+      canvas.height = height;
+      console.log(existingShapes);
+      const cleanUp = handleGame(canvas, roomId, socket, toolSelected, existingShapes);
+      return () => cleanUp();
     }
-  }, []);
+  }, [toolSelected, existingShapes]);
 
-  return <canvas
-    width={1000}
-    height={1000}
-    ref={canvasRef}
-  > 
-  </canvas>
+  return <div className="overflow-hidden relative">
+    <canvas
+      ref={canvasRef}
+      className="w-[100vw] h-[100vh]"
+    > 
+    </canvas>
+    <Tools 
+      setToolSelected={setToolSelected} 
+      toolSelected={toolSelected}
+    />
+  </div>
 }
